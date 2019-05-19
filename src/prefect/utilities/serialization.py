@@ -1,4 +1,5 @@
 import base64
+import datetime
 import inspect
 import json
 import sys
@@ -335,12 +336,32 @@ class FunctionReference(fields.Field):
 
 class StatefulFunctionReference(fields.Field):
     """
-    Similar to `FunctionField`, Field that stores a reference to a possibly stateful function as a string and reloads it when
-    deserialized.
+    Similar to `FunctionField`, this is a Field that stores a reference to a
+    possibly stateful function, as might be created by a factory closure.
+
+    For example:
+
+    ```python
+    def outer(x, y):
+        def inner(z):
+            return x + y + z
+        return inner
+
+    def no_outer(z):
+        return 1 + z
+
+    f = outer(1, 2)
+    ```
+
+    Here, `fn` is a "stateful" function because it depends on the values `x` and `y`, but has
+    no explicit attribute holding them.
+
+    We would serialize this function as `{"fn": "outer", "nonlocals": {"x": 1, "y": 2}}`
+
+    Note that `nonlocals` MUST be JSON-compatible, with the exception of datetimes.
 
     Args:
-        - valid_functions (List[Callable]): a list of functions that will be serialized as string
-            references
+        - valid_functions (List[Callable]): a whitelist of valid functions
         - reject_invalid (bool): if True, functions not in `valid_functions` will be rejected. If False,
             any value will be allowed, but only functions in `valid_functions` will be deserialized.
         - **kwargs (Any): the keyword arguments accepted by `marshmallow.Field`
@@ -366,19 +387,20 @@ class StatefulFunctionReference(fields.Field):
             else:
                 return qual_name
 
-        valid_bases = [
-            name for name in self.valid_functions if qual_name.startswith(name)
-        ]
-        if not any(valid_bases) and self.reject_invalid:
+        valid_bases = [fn for fn in self.valid_functions if qual_name.startswith(fn)]
+        if not valid_bases and self.reject_invalid:
             raise ValidationError("Invalid function reference: {}".format(value))
         else:
             base_name = next(filter(None, valid_bases)) if valid_bases else qual_name
 
-        state_kwargs = inspect.getclosurevars(value)[0]
-        call_sig = ", ".join(
-            ["{k}={v}".format(k=k, v=v) for k, v in state_kwargs.items()]
-        )
-        return base_name + "({})".format(call_sig)
+        nonlocals = inspect.getclosurevars(value).nonlocals
+
+        for k, v in list(nonlocals.items()):
+            # convert dates to strings
+            if isinstance(v, datetime.datetime):
+                nonlocals[k] = "//dt:" + v.isoformat()
+
+        return {"fn": base_name, "nonlocals": nonlocals}
 
     def _deserialize(self, value, attr, data, **kwargs):  # type: ignore
         """
@@ -389,8 +411,26 @@ class StatefulFunctionReference(fields.Field):
         if value is None and self.allow_none:
             return None
 
-        base_name = value.split("(")[0]
+        # retrieve the function
+        base_name = value["fn"]
         if base_name not in self.valid_functions and self.reject_invalid:
             raise ValidationError("Invalid function reference: {}".format(value))
+        fn = self.valid_functions.get(base_name)
 
-        return self.valid_functions.get(base_name)
+        if not fn:
+            return None
+
+        # call function on state
+        nonlocals = value["nonlocals"]
+
+        # if there are no nonlocals, then this function isn't stateful
+        if not nonlocals:
+            return fn
+
+        # if there ARE nonlocals, then this function is actually the parent function and
+        # it needs to be called
+        for k, v in list(nonlocals.items()):
+            # parse datetimes
+            if isinstance(v, str) and v.startswith("//dt:"):
+                nonlocals[k] = pendulum.parse(v.split("//dt:", 1)[1])
+        return fn(**nonlocals)

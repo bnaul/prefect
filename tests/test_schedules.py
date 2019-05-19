@@ -4,7 +4,7 @@ import pendulum
 import pytest
 
 from prefect import __version__, schedules
-from prefect.serialization.schedule import ScheduleSchema
+# from prefect.serialization.schedule import ScheduleSchema
 
 START_DATE = pendulum.datetime(2018, 1, 1)
 DATES = [

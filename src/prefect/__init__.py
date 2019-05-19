@@ -14,7 +14,7 @@ import prefect.tasks
 import prefect.flows
 from prefect.utilities.tasks import task, tags, unmapped
 
-import prefect.serialization
+# import prefect.serialization
 
 from ._version import get_versions
 
