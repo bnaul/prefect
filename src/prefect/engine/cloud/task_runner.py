@@ -357,6 +357,8 @@ class CloudTaskRunner(TaskRunner):
                 context=context,
                 is_mapped_parent=is_mapped_parent,
             )
+            import logging
+            logging.critical("end_state 1: %s", end_state) 
             while (end_state.is_retrying() or end_state.is_queued()) and (
                 end_state.start_time <= pendulum.now("utc").add(minutes=10)  # type: ignore
             ):
@@ -397,6 +399,7 @@ class CloudTaskRunner(TaskRunner):
                     context=context,
                     is_mapped_parent=is_mapped_parent,
                 )
-                logging.critical("end_state: %s", end_state) 
+                import logging
+                logging.critical("end_state 2: %s", end_state) 
 
             return end_state
