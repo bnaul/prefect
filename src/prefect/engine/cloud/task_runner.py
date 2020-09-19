@@ -397,5 +397,6 @@ class CloudTaskRunner(TaskRunner):
                     context=context,
                     is_mapped_parent=is_mapped_parent,
                 )
+                logging.critical("end_state: %s", end_state) 
 
             return end_state
