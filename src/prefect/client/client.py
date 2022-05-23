@@ -526,7 +526,9 @@ class Client:
         if rate_limited and rate_limit_counter <= 6:
             jitter = random.random() * 10 * (2**rate_limit_counter)
             naptime = 3 * 60 + jitter  # 180 second sleep + increasing jitter
-            self.logger.debug(f"Rate limit encountered; sleeping for {naptime}s...")
+            self.logger.warning(
+                f"Rate limit encountered (attempt {rate_limit_counter}); sleeping for {naptime}s..."
+            )
             time.sleep(naptime)
             response = self._send_request(
                 session=session,
