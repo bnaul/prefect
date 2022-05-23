@@ -531,7 +531,7 @@ class Client:
                 * (prefect.config.cloud.rate_limit_backoff_exponent ** rate_limit_counter)
             )
             naptime = prefect.config.cloud.rate_limit_backoff_s + jitter
-            self.logger.warning(
+            self.logger.debug(
                 f"Rate limit encountered (attempt {rate_limit_counter}); sleeping for {naptime}s..."
             )
             time.sleep(naptime)
