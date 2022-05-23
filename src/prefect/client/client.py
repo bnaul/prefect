@@ -518,14 +518,19 @@ class Client:
 
         # custom logic when encountering an API rate limit:
         # each time we encounter a rate limit, we sleep for
-        # 3 minutes + random amount, where the random amount
-        # is uniformly sampled from (0, 10 * 2 ** rate_limit_counter)
-        # up to (0, 640), at which point an error is raised if the limit
-        # is still being hit
+        # config.cloud.rate_limit_backoff_s + random amount, where the random amount
+        # is uniformly sampled from
+        # (0, config.cloud.rate_limit_backoff_multiplier * 2 ** rate_limit_counter)
+        # up to (0, 10 * 2 ** config.cloud.rate_limit_max_retries),
+        # at which point an error is raised if the limit is still being hit
         rate_limited = response.status_code == 429
-        if rate_limited and rate_limit_counter <= 6:
-            jitter = random.random() * 10 * (2**rate_limit_counter)
-            naptime = 3 * 60 + jitter  # 180 second sleep + increasing jitter
+        if rate_limited and rate_limit_counter <= prefect.config.cloud.rate_limit_max_retries:
+            jitter = (
+                random.random()
+                * prefect.config.cloud.rate_limit_backoff_multiplier
+                * (2 ** rate_limit_counter)
+            )
+            naptime = prefect.config.cloud.rate_limit_backoff_s + jitter
             self.logger.warning(
                 f"Rate limit encountered (attempt {rate_limit_counter}); sleeping for {naptime}s..."
             )
