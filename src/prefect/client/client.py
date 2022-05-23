@@ -528,7 +528,7 @@ class Client:
             jitter = (
                 random.random()
                 * prefect.config.cloud.rate_limit_backoff_multiplier
-                * (2 ** rate_limit_counter)
+                * (prefect.config.cloud.rate_limit_backoff_exponent ** rate_limit_counter)
             )
             naptime = prefect.config.cloud.rate_limit_backoff_s + jitter
             self.logger.warning(

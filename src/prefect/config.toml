@@ -62,9 +62,6 @@ heartbeat_mode = "process" # ['process', 'thread', 'off']
 check_cancellation_interval = 15.0
 diagnostics = false
 request_timeout = 15
-rate_limit_backoff_s = 180
-rate_limit_backoff_multiplier = 10
-rate_limit_max_retries = 6
 
 # If set, logs for flow runs reporting to the API will be sent to the backend
 send_flow_run_logs = true
@@ -99,6 +96,12 @@ tenant_id = ""
         [cloud.agent.resource_manager]
         # Separate loop interval for resource managers
         loop_interval = 60
+
+    [cloud.rate_limiting]
+    backoff_s = 180
+    backoff_multiplier = 10
+    backoff_exponent = 2
+    max_retries = 6
 
 
 [logging]
