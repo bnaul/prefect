@@ -273,6 +273,7 @@ class FlowRunner(Runner):
                 state = self.check_flow_is_pending_or_running(state)
                 state = self.check_flow_reached_start_time(state)
                 state = self.set_flow_to_running(state)
+                self.logger.debug("Flow run STARTING: setting the flow to running.")
                 state = self.get_flow_run_state(
                     state,
                     task_states=task_states,
@@ -281,6 +282,7 @@ class FlowRunner(Runner):
                     task_runner_state_handlers=task_runner_state_handlers,
                     executor=executor,
                 )
+                self.logger.debug("Flow run FINISHED: all reference tasks succeeded.")
 
         except ENDRUN as exc:
             state = exc.state
@@ -439,6 +441,7 @@ class FlowRunner(Runner):
 
         # -- process each task in order
 
+        self.logger.debug("Starting executor, awaiting tasks.")
         with self.check_for_cancellation(), executor.start():
 
             for task in self.flow.sorted_tasks():
@@ -633,6 +636,7 @@ class FlowRunner(Runner):
             # ---------------------------------------------
 
             # terminal tasks determine if the flow is finished
+            self.logger.debug("Flow run: waiting for terminal tasks to finish.")
             terminal_tasks = self.flow.terminal_tasks()
 
             # reference tasks determine flow state
@@ -659,12 +663,15 @@ class FlowRunner(Runner):
                     all_final_states[t] = s.map_states
 
             assert isinstance(final_states, dict)
+            self.logger.debug("Flow run: all tasks finished, about to close executor")
 
+        self.logger.debug("Flow run: executor closed.")
         key_states = set(flatten_seq([all_final_states[t] for t in reference_tasks]))
         terminal_states = set(
             flatten_seq([all_final_states[t] for t in terminal_tasks])
         )
         return_states = {t: final_states[t] for t in return_tasks}
+        self.logger.debug("Flow run: all tasks finished.")
 
         state = self.determine_final_state(
             state=state,

@@ -277,6 +277,7 @@ class CloudFlowRunner(FlowRunner):
         context = (context or {}).copy()
         context.update(running_with_backend=True)
 
+        self.logger.debug("Starting flow run with context: %s", context)
         end_state = super().run(
             state=state,
             task_states=task_states,
@@ -287,6 +288,7 @@ class CloudFlowRunner(FlowRunner):
             context=context,
             task_contexts=task_contexts,
         )
+        self.logger.debug("Flow run ended with state: %s", end_state)
         # If start time is more than 10 minutes in the future,
         # we fail the run so Lazarus can pick it up and reschedule it.
         while end_state.is_queued() and (
