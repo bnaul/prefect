@@ -252,10 +252,16 @@ class DaskExecutor(Executor):
                         with performance_report_context:
                             self.client = client
                             try:
+                                self.logger.info("Dask client started")
                                 self._pre_start_yield()
+                                self.logger.info("Dask pre-start-yield finished")
                                 yield
                             finally:
+                                self.logger.info("Dask post-start-yield starting")
                                 self._post_start_yield()
+                                self.logger.info("Dask post-start-yield finished")
+                    self.logger.info("Dask client closed; closing cluster")
+                self.logger.info("Dask cluster closed")
         finally:
             self.client = None
 
@@ -338,12 +344,14 @@ class DaskExecutor(Executor):
 
         if self._watch_dask_events_task is not None:
             try:
+                self.logger.debug("Cancelling worker status listener")
                 self._watch_dask_events_task.cancel()
             except Exception:
                 pass
             self._watch_dask_events_task = None
 
         if self._should_run_event is not None:
+            self.logger.debug("should_run_event is set, waiting for all tasks to finish")
             # Multipart cleanup, ignoring exceptions in each stage
             # 1.) Stop pending tasks from starting
             try:
@@ -361,6 +369,7 @@ class DaskExecutor(Executor):
                     wait(futures)
             except Exception:
                 pass
+        self.logger.debug("DaskExecutor cleanup complete")
         self._should_run_event = None
         self._futures = None
 

@@ -169,6 +169,7 @@ class CloudFlowRunner(FlowRunner):
     def check_for_cancellation(self) -> Iterator:
         """Contextmanager used to wrap a cancellable section of a flow run."""
 
+        self.logger.debug("Checking for flow run cancellation")
         cancelling = False
         done = threading.Event()
         flow_run_version = None
