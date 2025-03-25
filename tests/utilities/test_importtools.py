@@ -135,12 +135,6 @@ def test_lazy_import_includes_help_message_in_deferred_failure():
         (TEST_PROJECTS_DIR / "nested-project", "explicit_relative.py"),
         # The tree structure requires the working directory to be at the base
         (TEST_PROJECTS_DIR / "tree-project", Path("imports") / "implicit_relative.py"),
-        # below are cases that used to fail; see https://github.com/PrefectHQ/prefect/pull/17524
-        (
-            TEST_PROJECTS_DIR,
-            Path("tree-project") / "imports" / "implicit_relative.py",
-        ),
-        (TEST_PROJECTS_DIR / "tree-project" / "imports", "implicit_relative.py"),
     ],
 )
 def test_import_object_from_script_with_relative_imports(
@@ -158,6 +152,13 @@ def test_import_object_from_script_with_relative_imports(
     [
         # Explicit relative imports cannot go up levels with script-based imports
         (TEST_PROJECTS_DIR / "tree-project", Path("imports") / "explicit_relative.py"),
+        # Note here the working directory is too far up in the structure
+        (
+            TEST_PROJECTS_DIR,
+            Path("tree-project") / "imports" / "implicit_relative.py",
+        ),
+        # Note here the working directory is too far down in the structure
+        (TEST_PROJECTS_DIR / "tree-project" / "imports", "implicit_relative.py"),
     ],
 )
 def test_import_object_from_script_with_relative_imports_expected_failures(
@@ -179,8 +180,6 @@ def test_import_object_from_script_with_relative_imports_expected_failures(
         (TEST_PROJECTS_DIR / "flat-project", "implicit_relative.foobar"),
         (TEST_PROJECTS_DIR / "nested-project", "implicit_relative.foobar"),
         (TEST_PROJECTS_DIR / "tree-project", "imports.implicit_relative.foobar"),
-        # below are cases that used to fail; see https://github.com/PrefectHQ/prefect/pull/17524
-        (TEST_PROJECTS_DIR, "implicit_relative.foobar"),
     ],
 )
 def test_import_object_from_module_with_relative_imports(
@@ -198,6 +197,8 @@ def test_import_object_from_module_with_relative_imports(
         (TEST_PROJECTS_DIR / "flat-project", "explicit_relative.foobar"),
         (TEST_PROJECTS_DIR / "nested-project", "explicit_relative.foobar"),
         (TEST_PROJECTS_DIR / "tree-project", "imports.explicit_relative.foobar"),
+        # Not expected to work if the working directory is not the project
+        (TEST_PROJECTS_DIR, "implicit_relative.foobar"),
     ],
 )
 def test_import_object_from_module_with_relative_imports_expected_failures(
@@ -218,10 +219,10 @@ def test_safe_load_namespace():
         import math
         from datetime import datetime
         from pydantic import BaseModel
-
+                         
         class MyModel(BaseModel):
             x: int
-
+                         
         def my_fn():
             return 42
 
@@ -253,9 +254,9 @@ def test_safe_load_namespace_ignores_import_errors():
     source_code = dedent(
         """
         import flibbidy
-
+                         
         from pydantic import BaseModel
-
+                         
         class MyModel(BaseModel):
             x: int
     """
@@ -275,7 +276,7 @@ def test_safe_load_namespace_ignore_class_declaration_errors():
     source_code = dedent(
         """
         from fake_pandas import DataFrame
-
+                         
         class CoolDataFrame(DataFrame):
             pass
     """
@@ -349,6 +350,7 @@ def test_concurrent_script_loading(tmpdir: Path):
     """Test that loading multiple scripts concurrently is thread-safe.
 
     This is a regression test for https://github.com/PrefectHQ/prefect/issues/16452
+    where concurrent flow loading would fail with KeyError: '__prefect_loader__'
     """
     script_contents = """
 def hello():
@@ -386,3 +388,4 @@ def hello():
 
     module_names = [m.__name__ for m in loaded_modules]
     assert len(module_names) == len(set(module_names)), "Duplicate module names found"
+    assert all(name.startswith("__prefect_loader_") for name in module_names)
