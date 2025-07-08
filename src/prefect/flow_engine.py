@@ -599,7 +599,11 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
             stack.enter_context(capture_sigterm())
             if log_prints:
                 stack.enter_context(patch_print())
-            task_runner = stack.enter_context(self.flow.task_runner.duplicate())
+
+            # Create task runner but don't enter context yet
+            task_runner_instance = self.flow.task_runner.duplicate()
+
+            # Enter FlowRunContext first so task runner can access flow run context
             stack.enter_context(
                 FlowRunContext(
                     flow=self.flow,
@@ -610,12 +614,14 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                     result_store=get_result_store().update_for_flow(
                         self.flow, _sync=True
                     ),
-                    task_runner=task_runner,
+                    task_runner=task_runner_instance,
                     persist_result=self.flow.persist_result
                     if self.flow.persist_result is not None
                     else should_persist_result(),
                 )
             )
+
+            stack.enter_context(task_runner_instance)
             stack.enter_context(ConcurrencyContextV1())
             stack.enter_context(ConcurrencyContext())
 
